@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>three.js webgl - blender -json</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                background:#777;
+                padding:0;
+                margin:0;
+                font-weight: bold;
+                overflow:hidden;
+            }
+            #info {
+                position: absolute;
+                top: 0px;
+                width: 100%;
+                color: #ffffff;
+                padding: 5px;
+                font-family:Monospace;
+                font-size:13px;
+                text-align:center;
+            }
+            a {
+                color: #ffffff;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div id="container"></div>
+
+        <script src="/js/three.js"></script>
+        <script src="/js/Detector.js"></script>
+        <script src="/js/stats.min.js"></script>
+
+        <script>
+            function setWireframe(mesh, enable) {
+                try {
+                  for(material of mesh.material) {
+                          material.wireframe=enable;
+                  }
+                } catch(err) {
+                      mesh.material.wireframe = enable;
+                }
+            }
+            if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+            var container, stats, clock, mixer;
+            var camera, scene, renderer, objects, raycaster, mouse, floor, selected = null;
+            var mesh;
+            init();
+            animate();
+            function init() {
+                container = document.getElementById( 'container' );
+                raycaster = new THREE.Raycaster();
+                mouse = new THREE.Vector2();
+                var material = new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } );
+                //var material = new THREE.MeshBasicMaterial( { wireframe: true } )
+                floor = new THREE.Mesh(new THREE.BoxBufferGeometry( 20, 2, 20 ), material);
+                floor.position.set(0, -1, 0);
+                camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 2000 );
+                camera.position.set( 2, 4, 5 );
+                clock = new THREE.Clock();
+                scene = new THREE.Scene();
+                scene.fog = new THREE.FogExp2( 0x000000, 0.035 );
+                mixer = new THREE.AnimationMixer( scene );
+                scene.add(floor);
+                var loader = new THREE.JSONLoader();
+                var url = "obj/MewTwo/Mewtwo.json";
+                //var url = 'obj/monster/monster.js';
+                loader.load( url, function ( geometry, materials ) {
+                    console.log(materials);
+                    // adjust color a bit
+                    materials[0].morphTargets = true; //if not true animation won't play
+                    materials[1].morphTargets = true; //if not true animation won't play
+                    //material.color.setHex( 0xffaaaa );
+                    /*
+                    for ( var i = 0; i < 735; i ++ ) {
+                        //mesh = new THREE.Mesh( geometry, [material, material] );
+                        mesh = new THREE.Mesh( geometry, materials );
+                        // random placement in a grid
+                        var x = ( ( i % 27 )  - 13.5 ) * 2 + THREE.Math.randFloatSpread( 1 );
+                        var z = ( Math.floor( i / 27 ) - 13.5 ) * 2 + THREE.Math.randFloatSpread( 1 );
+                        mesh.position.set( x, 0, z );
+                        var s = THREE.Math.randFloat( 0.00075, 0.001 );
+                        mesh.scale.set(0.1, 0.1, 0.1);
+                        //mesh.scale.set(s, s, s);
+                        mesh.rotation.y = THREE.Math.randFloat( -0.25, 0.25 );
+                        mesh.matrixAutoUpdate = false;
+                        mesh.updateMatrix();
+                        scene.add( mesh );
+                        console.log(geometry.animations.length)
+                        mixer.clipAction( geometry.animations[ 0 ], mesh )
+                                .setDuration( 1 )            // one second
+                                .startAt( - Math.random() )    // random phase (already running)
+                                .play();                    // let's go
+                    }
+                    */
+                     mesh = new THREE.Mesh( geometry, materials );
+                     mesh.position.set( 0, 0, 0 );
+                    mesh.scale.set(0.1, 0.1, 0.1);
+                    mesh.rotation.y = 0;
+                    mesh.name = "unit";
+                    mesh.matrixAutoUpdate = true;
+                    //mesh.updateMatrix();
+                    scene.add( mesh );
+                    console.log(geometry.animations.length);
+                    (mesh._m_animation = mixer.clipAction( geometry.animations[ 0 ], mesh ))
+                            .setDuration( 1 )            // one second
+                            .startAt( - Math.random() )    // random phase (already running)
+                            .play();                    // let's go
+                     
+                } );
+                // lights
+                var ambientLight = new THREE.AmbientLight( 0xffffffff );
+                scene.add( ambientLight );
+                var pointLight = new THREE.PointLight( 0xffffff, 5, 30 );
+                pointLight.position.set( 5, 0, 0 );
+                scene.add( pointLight );
+                // renderer
+                renderer = new THREE.WebGLRenderer();
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                container.appendChild( renderer.domElement );
+                // stats
+                stats = new Stats();
+                container.appendChild( stats.dom );
+                // events
+                window.addEventListener( 'resize', onWindowResize, false );
+                container.addEventListener('click', function(event){
+                      var bounds = container.getBoundingClientRect()
+                      mouse.x = ( (event.clientX - bounds.left) / container.clientWidth ) * 2 - 1;
+                      mouse.y = - ( (event.clientY - bounds.top) / container.clientHeight ) * 2 + 1;
+                      raycaster.setFromCamera( mouse, camera );
+                      var intersects = raycaster.intersectObjects(scene.children, true);
+                      if (intersects.length > 0) {
+                          intersect = intersects[0];
+                              var meshClicked =  intersect.object;
+                              if(meshClicked === floor) {
+                                  console.log(selected);
+                                  if(selected != null) {
+                                      console.log("move:");
+                                      console.log(selected);
+                                      console.log("to:");
+                                      console.log(intersect.point);
+                                      selected.position.set(intersect.point.x, intersect.point.y, intersect.point.z);
+                                      //selected.updateMatrix();
+                                      setWireframe(selected, false);
+                                      selected = null;
+                                  }
+                              } else {
+                                if(selected === meshClicked) {
+                                    setWireframe(selected, false);
+                                    selected = null;
+                                } else {
+                                    selected = meshClicked;
+                                    setWireframe(selected, true);
+                                }
+                              }
+                              console.log(selected);
+                      } else {
+                          
+                      }
+                });
+            }
+            //
+            function onWindowResize( event ) {
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            }
+            //
+            function animate() {
+                requestAnimationFrame( animate );
+                render();
+                stats.update();
+            }
+            function render() {
+                var timer = Date.now() * 0.0005;
+                camera.position.x = Math.cos( timer ) * 10;
+                camera.position.y = 4;
+                camera.position.z = Math.sin( timer ) * 10;
+                mixer.update( clock.getDelta() );
+                camera.lookAt( scene.position );
+                renderer.render( scene, camera );
+            }
+        </script>
+    </body>
+</html>

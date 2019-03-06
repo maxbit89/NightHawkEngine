@@ -1,0 +1,7 @@
+{
+  "url": "https://github.com/owner/project/issues",
+  "email": "project@hostname.com",
+  "dependencies": {
+    "express": "^4.16.3"
+  }
+}
